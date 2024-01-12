@@ -16,9 +16,9 @@ Methods:
     - 
 Attributes:
     - One for each interactive element of the GUI
-    - self.directory: Directory of the .txt files containing the spectra
     - self.datadict: A dictionary containing all relevant quantities from the 
                      original data and its processing
+        - directory: Directory of the .txt files containing the spectra
         - number_spectra (int): Number of spectra
         - dt (float): The fixed time between spectrum accquisitions
         - freqs (1D array): The frequency vector in Hz
@@ -31,6 +31,7 @@ Attributes:
         - fitresults_std (2D array): Standard deviation of Lorentzian best fit parameters for all spectra
     - self.plotted_spectrum: Currently plotted spectrum in the frame_spectrum
     - self.plotted_peak: Currently plotted Lorentzian in the frame_spectrum
+    - 
 """
 
 import sys
@@ -70,6 +71,7 @@ class GUI(QMainWindow):
         self.frame_frequency = self.findChild(pg.PlotWidget, 'frame_frequency')
         self.frame_linewidth = self.findChild(pg.PlotWidget, 'frame_linewidth')
         self.frame_allandev = self.findChild(pg.PlotWidget, 'frame_allandev')
+        self.frame_linhist = self.findChild(pg.PlotWidget, 'frame_linhist')
         
         # Set up the mouse click events for frequency and linewdith plot
         self.frame_frequency.scene().sigMouseClicked.connect(self.signal_frequency)
@@ -92,6 +94,10 @@ class GUI(QMainWindow):
         self.frame_allandev.setLabel("bottom", "Tau", "s", textColor="k")
         self.frame_allandev.setBackground("w")
         
+        self.frame_linhist.setLabel("left", "N", textColor="k")
+        self.frame_linhist.setLabel("bottom", "Beat linewidth", "Hz", textColor="k")
+        self.frame_linhist.setBackground("w")
+        
         # Set axis pen color to black
         self.frame_spectrum.getAxis('bottom').setPen(pg.mkPen(color="k"))  # X-axis
         self.frame_spectrum.getAxis('left').setPen(pg.mkPen(color="k"))    # Y-axis
@@ -105,6 +111,9 @@ class GUI(QMainWindow):
         self.frame_allandev.getAxis('bottom').setPen(pg.mkPen(color="k"))  # X-axis
         self.frame_allandev.getAxis('left').setPen(pg.mkPen(color="k"))    # Y-axis
         
+        self.frame_linhist.getAxis('bottom').setPen(pg.mkPen(color="k"))  # X-axis
+        self.frame_linhist.getAxis('left').setPen(pg.mkPen(color="k"))    # Y-axis
+        
         # Set axis tick and label color to black
         self.frame_spectrum.getAxis('bottom').setTextPen(color="k")
         self.frame_spectrum.getAxis('left').setTextPen(color="k")
@@ -117,6 +126,9 @@ class GUI(QMainWindow):
         
         self.frame_allandev.getAxis('bottom').setTextPen(color="k")
         self.frame_allandev.getAxis('left').setTextPen(color="k")
+        
+        self.frame_linhist.getAxis('bottom').setTextPen(color="k")
+        self.frame_linhist.getAxis('left').setTextPen(color="k")
         
         # Connect the GUI input elements to attributes of this class
         self.input_name = self.findChild(QLineEdit, 'in_name')
@@ -166,25 +178,23 @@ class GUI(QMainWindow):
         
         # Create attribute of self storing the directory
         if path:
-            self.directory = path
+            directory = path
             
         # Create a list of the waveform files and store them in self.spectra
-        files = sorted(os.listdir(self.directory))
+        files = sorted(os.listdir(directory))
         
         # Delete all elements from the list that are no .txt files
         files = list(filter(lambda x: ".txt" in x, files))
         
         # Read first spectrum and create self.spectra and self.freqs
-        first = np.genfromtxt(os.path.join(self.directory, files[0]), delimiter="\t", skip_header=2)
+        first = np.genfromtxt(os.path.join(directory, files[0]), delimiter="\t", skip_header=2)
         freqs = first[:,0]*1e6 # in Hz
         spectra = np.zeros([len(freqs), len(files)])
         number_spectra = len(files)
         
-        # Set the min and max of the import progress bars
+        # Set the min and max of the import progress bar
         self.pB_import.setMinimum(0)
-        self.pB_fitting.setMinimum(0)
         self.pB_import.setMaximum(number_spectra)
-        self.pB_fitting.setMaximum(number_spectra)
         
         # Iterate over all spectra and save them to self.spectra
         for i in range(len(files)):
@@ -192,7 +202,7 @@ class GUI(QMainWindow):
             QCoreApplication.processEvents()  # Process GUI events to update the progress bar
             
             # Load and process the spectra
-            path = os.path.join(self.directory, files[i])
+            path = os.path.join(directory, files[i])
             helper = np.genfromtxt(path, delimiter="\t", skip_header=2)
             spectra[:,i] = helper[:,1]
             
@@ -211,6 +221,7 @@ class GUI(QMainWindow):
         self.datadict["number_spectra"] = number_spectra 
         self.datadict["dt"] = dt
         self.datadict["time_array"] = time_array
+        self.datadict["directory"] = directory
         
         
     # Called when "Check initial values" is clicked
@@ -261,6 +272,7 @@ class GUI(QMainWindow):
         fitrange_idx = self.datadict["fitrange_idx"]
         number_spectra = self.datadict["number_spectra"]
         initvals = self.datadict["initvals"]
+        directory = self.datadict["directory"]
         
         # Array for storing fitresults and uncertainties
         fitresults = np.zeros([4, number_spectra])
@@ -271,27 +283,35 @@ class GUI(QMainWindow):
         lbounds = np.array((-np.inf, 0,      0,      0))
         ubounds = np.array((np.inf,  np.inf, np.inf, np.inf))
         
+        # Set the min and max of the import progress bars
+        self.pB_fitting.setMinimum(0)
+        self.pB_fitting.setMaximum(number_spectra)
+        
         # Iterate over all spectra and do the fitting
         p0 = initvals
-        x0_init = initvals[2]
-        
         for i in range(number_spectra):
-            # Use peak position from previous spectrum as initial value for position
-            p0[2] = x0_init
-            
             # Fit
-            popt, pcov = curve_fit(mod.lorentzian,\
-                                   freqs[fitrange_idx[0]:fitrange_idx[1]],\
-                                   spectra[fitrange_idx[0]:fitrange_idx[1], i],\
-                                   p0, bounds=(lbounds, ubounds), jac=mod.jacobian)
-            pstd = np.sqrt(np.diag(pcov))
-            
+            try:
+                # Use highest point in spectrum as inital value for pos
+                idx_max = np.argmax(spectra[fitrange_idx[0]:fitrange_idx[1], i])
+                p0[2] = freqs[fitrange_idx[0]:fitrange_idx[1]][idx_max]
+                # Fit
+                popt, pcov = curve_fit(mod.lorentzian,\
+                                       freqs[fitrange_idx[0]:fitrange_idx[1]],\
+                                       spectra[fitrange_idx[0]:fitrange_idx[1], i],\
+                                       p0, bounds=(lbounds, ubounds), jac=mod.jacobian)
+                pstd = np.sqrt(np.diag(pcov))
+                # If the fit worked, use best fit parameters as initial values 
+                # for next spectrum
+                p0 = initvals
+            except:
+                popt = np.zeros([4])
+                pstd = np.zeros([4])
+                # If the fit didn't work, use original initial values
+                p0 = initvals
             # Save rfit results
             fitresults[:,i] = popt
             fitresults_std[:,i] = pstd
-            
-            # Save beat frequency as initial value for next spectrum
-            x0_init = popt[2]
             
             # Update progress bar
             window.pB_fitting.setValue(i+1)
@@ -302,7 +322,8 @@ class GUI(QMainWindow):
         self.datadict["fitresults_std"] = fitresults_std
         
         # Save the datadict
-        mod.save_object(window.directory, "0_Analysis", "datadict", self.datadict)
+        mod.save_object(directory, "0_Analysis", "datadict", self.datadict)
+        print("datadict saved")
     
         
     # Called when "Load and plot results" is clicked
@@ -329,11 +350,14 @@ class GUI(QMainWindow):
         fitresults_std = self.datadict["fitresults_std"]
         time_array = self.datadict["time_array"]
         dt = self.datadict["dt"]
+        number_spectra = self.datadict["number_spectra"]
         
-        # Create scatter items for frequency and linewdith
-        scatter_frequency = pg.ScatterPlotItem(x=time_array, y=fitresults[2,:], pen=pg.mkPen(color='k')) # Frequency
-        scatter_linewidth = pg.ScatterPlotItem(x=time_array, y=fitresults[3,:], pen=pg.mkPen(color='k')) # Linewidth
-        
+        # Clear the frames in case there are previous plots
+        self.frame_frequency.clear()
+        self.frame_linewidth.clear()
+        self.frame_allandev.clear()
+        self.frame_linhist.clear()
+            
         # Create shaded 1 sigma bands
         # Frequency
         line1_frequency = pg.PlotCurveItem(x=time_array, y=fitresults[2,:]-fitresults_std[2,:], pen=pg.mkPen(color='k'))
@@ -341,31 +365,35 @@ class GUI(QMainWindow):
         shade_area_frequency = pg.FillBetweenItem(curve1=line1_frequency, curve2=line2_frequency, brush=pg.mkBrush(color=(200, 200, 200, 70)))
         # Linewidth
         line1_linewidth = pg.PlotCurveItem(x=time_array, y=fitresults[3,:]-fitresults_std[3,:], pen=pg.mkPen(color='k'))
-        line2_linewidth = pg.PlotCurveItem(x=time_array, y=fitresults[3,:]-fitresults_std[3,:], pen=pg.mkPen(color='k'))
+        line2_linewidth = pg.PlotCurveItem(x=time_array, y=fitresults[3,:]+fitresults_std[3,:], pen=pg.mkPen(color='k'))
         shade_area_linewidth = pg.FillBetweenItem(curve1=line1_linewidth, curve2=line2_linewidth, brush=pg.mkBrush(color=(200, 200, 200, 70)))
         
-        # Add scatter items and shaded sigma bands to plots
-        window.frame_frequency.addItem(scatter_frequency)
-        window.frame_linewidth.addItem(scatter_linewidth)
-        window.frame_frequency.addItem(shade_area_frequency)
-        window.frame_linewidth.addItem(shade_area_linewidth)
+        # Add plots and shaded sigma bands to plots
+        self.frame_frequency.plot(x=time_array, y=fitresults[2,:], pen=pg.mkPen(color='k'))
+        self.frame_linewidth.plot(x=time_array, y=fitresults[3,:], pen=pg.mkPen(color='k'))
+        self.frame_frequency.addItem(shade_area_frequency)
+        self.frame_linewidth.addItem(shade_area_linewidth)
         
         # Calculate Allan deviation
         fractional_frequency = fitresults[2,:] / np.mean(fitresults[2,:])
         rate = 1/dt
-        taus, oad, oad_std, ns = allantools.oadev(fractional_frequency, rate, data_type="freq")
+        taus, allandev, allandev_std, ns = allantools.oadev(fractional_frequency, rate, data_type="freq")
         
         # Create scatter item for Allan deviation
-        scatter_oad = pg.ScatterPlotItem(x=taus, y=oad, pen=pg.mkPen(color='k'))
+        scatter_allandev = pg.ScatterPlotItem(x=taus, y=allandev, pen=pg.mkPen(color='k'))
         
         # Create shaded 1 sigma band for Allan deviation
-        line1_oad = pg.PlotCurveItem(x=taus, y=oad+oad_std, pen=pg.mkPen(color='k'))
-        line2_oad = pg.PlotCurveItem(x=taus, y=oad-oad_std, pen=pg.mkPen(color='k'))
-        shade_area_oad = pg.FillBetweenItem(curve1=line1_oad, curve2=line2_oad, brush=pg.mkBrush(color=(200, 200, 200, 70)))
+        line1_allandev = pg.PlotCurveItem(x=taus, y=allandev+allandev_std, pen=pg.mkPen(color='k'))
+        line2_allandev = pg.PlotCurveItem(x=taus, y=allandev-allandev_std, pen=pg.mkPen(color='k'))
+        shade_area_allandev = pg.FillBetweenItem(curve1=line1_allandev, curve2=line2_allandev, brush=pg.mkBrush(color=(200, 200, 200, 70)))
         
         # Add scatter items and shaded sigma bands to plots
-        window.frame_allandev.addItem(scatter_oad)
-        window.frame_allandev.addItem(shade_area_oad)
+        self.plotted_allandev = window.frame_allandev.addItem(scatter_allandev)
+        self.plotted_allandev_std = window.frame_allandev.addItem(shade_area_allandev)
+        
+        # Create linewidth histogram
+        hist, edges = np.histogram(fitresults[3,:], bins="fd") # Number of bins estimated by Freedman Diaconis Estimator
+        self.frame_linhist.plot(x=edges, y=hist, stepMode="center", pen=pg.mkPen(color='k'))
         
     
     # Called at mouse click in the frequency and linewidth plot, respectively
