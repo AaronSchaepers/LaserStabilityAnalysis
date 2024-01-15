@@ -83,11 +83,11 @@ class GUI(QMainWindow):
         self.frame_spectrum.setBackground("w")
         
         self.frame_frequency.setLabel("left", "Beat frequency", "Hz", textColor="k")
-        self.frame_frequency.setLabel("bottom", "Time", "s", textColor="k")
+        self.frame_frequency.setLabel("bottom", "Time", "h", textColor="k")
         self.frame_frequency.setBackground("w")
         
         self.frame_linewidth.setLabel("left", "Beat linewidth", "Hz", textColor="k")
-        self.frame_linewidth.setLabel("bottom", "Time", "s", textColor="k")
+        self.frame_linewidth.setLabel("bottom", "Time", "h", textColor="k")
         self.frame_linewidth.setBackground("w")
         
         self.frame_allandev.setLabel("left", "Overlapping Allan deviation", textColor="k")
@@ -129,6 +129,9 @@ class GUI(QMainWindow):
         
         self.frame_linhist.getAxis('bottom').setTextPen(color="k")
         self.frame_linhist.getAxis('left').setTextPen(color="k")
+        
+        # Set Allan deviation plot to log-log
+        #self.frame_allandev.setLogMode(x=True, y=False)
         
         # Connect the GUI input elements to attributes of this class
         self.input_name = self.findChild(QLineEdit, 'in_name')
@@ -323,7 +326,6 @@ class GUI(QMainWindow):
         
         # Save the datadict
         mod.save_object(directory, "0_Analysis", "datadict", self.datadict)
-        print("datadict saved")
     
         
     # Called when "Load and plot results" is clicked
@@ -350,29 +352,35 @@ class GUI(QMainWindow):
         fitresults_std = self.datadict["fitresults_std"]
         time_array = self.datadict["time_array"]
         dt = self.datadict["dt"]
-        number_spectra = self.datadict["number_spectra"]
         
         # Clear the frames in case there are previous plots
         self.frame_frequency.clear()
         self.frame_linewidth.clear()
         self.frame_allandev.clear()
         self.frame_linhist.clear()
-            
+        
+        # Convert time_array to hours for plotting
+        hours = time_array/3600
+        
         # Create shaded 1 sigma bands
         # Frequency
-        line1_frequency = pg.PlotCurveItem(x=time_array, y=fitresults[2,:]-fitresults_std[2,:], pen=pg.mkPen(color='k'))
-        line2_frequency = pg.PlotCurveItem(x=time_array, y=fitresults[2,:]+fitresults_std[2,:], pen=pg.mkPen(color='k'))
+        line1_frequency = pg.PlotCurveItem(x=hours, y=fitresults[2,:]-fitresults_std[2,:], pen=pg.mkPen(color='k'))
+        line2_frequency = pg.PlotCurveItem(x=hours, y=fitresults[2,:]+fitresults_std[2,:], pen=pg.mkPen(color='k'))
         shade_area_frequency = pg.FillBetweenItem(curve1=line1_frequency, curve2=line2_frequency, brush=pg.mkBrush(color=(200, 200, 200, 70)))
         # Linewidth
-        line1_linewidth = pg.PlotCurveItem(x=time_array, y=fitresults[3,:]-fitresults_std[3,:], pen=pg.mkPen(color='k'))
-        line2_linewidth = pg.PlotCurveItem(x=time_array, y=fitresults[3,:]+fitresults_std[3,:], pen=pg.mkPen(color='k'))
+        line1_linewidth = pg.PlotCurveItem(x=hours, y=fitresults[3,:]-fitresults_std[3,:], pen=pg.mkPen(color='k'))
+        line2_linewidth = pg.PlotCurveItem(x=hours, y=fitresults[3,:]+fitresults_std[3,:], pen=pg.mkPen(color='k'))
         shade_area_linewidth = pg.FillBetweenItem(curve1=line1_linewidth, curve2=line2_linewidth, brush=pg.mkBrush(color=(200, 200, 200, 70)))
         
         # Add plots and shaded sigma bands to plots
-        self.frame_frequency.plot(x=time_array, y=fitresults[2,:], pen=pg.mkPen(color='k'))
-        self.frame_linewidth.plot(x=time_array, y=fitresults[3,:], pen=pg.mkPen(color='k'))
+        self.frame_frequency.plot(x=hours, y=fitresults[2,:], pen=pg.mkPen(color='k'))
+        self.frame_linewidth.plot(x=hours, y=fitresults[3,:], pen=pg.mkPen(color='k'))
         self.frame_frequency.addItem(shade_area_frequency)
         self.frame_linewidth.addItem(shade_area_linewidth)
+        
+        # Create linewidth histogram
+        hist, edges = np.histogram(fitresults[3,:], bins="fd") # Number of bins estimated by Freedman Diaconis Estimator
+        self.frame_linhist.plot(x=edges, y=hist, stepMode="center", pen=pg.mkPen(color='k'))
         
         # Calculate Allan deviation
         fractional_frequency = fitresults[2,:] / np.mean(fitresults[2,:])
@@ -387,14 +395,10 @@ class GUI(QMainWindow):
         line2_allandev = pg.PlotCurveItem(x=taus, y=allandev-allandev_std, pen=pg.mkPen(color='k'))
         shade_area_allandev = pg.FillBetweenItem(curve1=line1_allandev, curve2=line2_allandev, brush=pg.mkBrush(color=(200, 200, 200, 70)))
         
-        # Add scatter items and shaded sigma bands to plots
+        # Add scatter item and shaded sigma bands to plot
         self.plotted_allandev = window.frame_allandev.addItem(scatter_allandev)
         self.plotted_allandev_std = window.frame_allandev.addItem(shade_area_allandev)
-        
-        # Create linewidth histogram
-        hist, edges = np.histogram(fitresults[3,:], bins="fd") # Number of bins estimated by Freedman Diaconis Estimator
-        self.frame_linhist.plot(x=edges, y=hist, stepMode="center", pen=pg.mkPen(color='k'))
-        
+                
     
     # Called at mouse click in the frequency and linewidth plot, respectively
     #   - Determine the position of the mouse click in data coordinates  
