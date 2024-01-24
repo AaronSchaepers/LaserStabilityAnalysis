@@ -7,37 +7,35 @@ Created on Thu Jun 29 10:07:14 2023
 @date: 2024/01/08
 @github: https://github.com/AaronSchaepers/laser_stability_analysis
 
-Required packages: pyqtgraph, allantools
+Required packages: pyqtgraph, allantools, numpy, scipy
     
 Class GUI:
-Inherits from the QtWidgets.QMainWindow class
-
-Methods:
-    - 
-Attributes:
-    - One for each interactive element of the GUI
-    - self.datadict: A dictionary containing all relevant quantities from the 
-                     original data and its processing
-        - directory: Directory of the .txt files containing the spectra
-        - number_spectra (int): Number of spectra
-        - dt (float): The fixed time between spectrum accquisitions
-        - freqs (1D array): The frequency vector in Hz
-        - spectra (2D array): y data of the spectra,
-        - self.initvals (list): User defined initial values for the Lorentzian fit
-        - time_array (1D array): Array of the wave form accquisition times
-        - fitrange_idx (list): Lower and upper bound of fitrange
-        - initvals (list): Initial values in the order (offset, intensity, position, linewidth)
-        - fitresults (2D array): Lorentzian best fit parameters for all spectra
-        - fitresults_std (2D array): Standard deviation of Lorentzian best fit parameters for all spectra
-    - self.plotted_spectrum: Currently plotted spectrum in the frame_spectrum
-    - self.plotted_peak: Currently plotted Lorentzian in the frame_spectrum
-    - 
+    Inherits from the QtWidgets.QMainWindow class
+    Attributes:
+        - One for each interactive element of the GUI
+        - self.datadict: A dictionary containing all relevant quantities from the 
+                         original data and its processing
+            - directory: Directory of the .txt files containing the spectra
+            - number_spectra (int): Number of spectra
+            - dt (float): The fixed time between spectrum accquisitions
+            - freqs (1D array): The frequency vector in Hz
+            - spectra (2D array): y data of the spectra,
+            - self.initvals (list): User defined initial values for the Lorentzian fit
+            - time_array (1D array): Array of the wave form accquisition times
+            - fitrange_idx (list): Lower and upper bound of fitrange
+            - initvals (list): Initial values in the order (offset, intensity, position, linewidth)
+            - fitresults (2D array): Lorentzian best fit parameters for all spectra
+            - fitresults_std (2D array): Standard deviation of Lorentzian best fit parameters for all spectra
+        - self.plotted_spectrum: Currently plotted spectrum in the frame_spectrum
+        - self.plotted_peak: Currently plotted Lorentzian in the frame_spectrum
+        - 
 """
 
 import sys
 import os
 import pickle
 import allantools
+import pyqtgraph.exporters
 
 import numpy as np
 import pyqtgraph as pg
@@ -47,7 +45,6 @@ from scipy.optimize import curve_fit
 from PyQt5 import QtWidgets, uic
 from PyQt5.QtWidgets import QFileDialog, QLineEdit, QPushButton, QMainWindow, QProgressBar
 from PyQt5.QtCore import QCoreApplication # To update progress bars in real time
-
 
 
 ###############################################################################
@@ -71,7 +68,7 @@ class GUI(QMainWindow):
         self.frame_frequency = self.findChild(pg.PlotWidget, 'frame_frequency')
         self.frame_linewidth = self.findChild(pg.PlotWidget, 'frame_linewidth')
         self.frame_allandev = self.findChild(pg.PlotWidget, 'frame_allandev')
-        self.frame_linhist = self.findChild(pg.PlotWidget, 'frame_linhist')
+        self.frame_powerspectrum = self.findChild(pg.PlotWidget, 'frame_powerspectrum')
         
         # Set up the mouse click events for frequency and linewdith plot
         self.frame_frequency.scene().sigMouseClicked.connect(self.signal_frequency)
@@ -83,20 +80,21 @@ class GUI(QMainWindow):
         self.frame_spectrum.setBackground("w")
         
         self.frame_frequency.setLabel("left", "Beat frequency", "Hz", textColor="k")
-        self.frame_frequency.setLabel("bottom", "Time", "h", textColor="k")
+        self.frame_frequency.setLabel("bottom", "Time", "s", textColor="k")
         self.frame_frequency.setBackground("w")
         
         self.frame_linewidth.setLabel("left", "Beat linewidth", "Hz", textColor="k")
-        self.frame_linewidth.setLabel("bottom", "Time", "h", textColor="k")
+        self.frame_linewidth.setLabel("bottom", "Time", "s", textColor="k")
         self.frame_linewidth.setBackground("w")
         
         self.frame_allandev.setLabel("left", "Overlapping Allan deviation", textColor="k")
         self.frame_allandev.setLabel("bottom", "Tau", "s", textColor="k")
         self.frame_allandev.setBackground("w")
         
-        self.frame_linhist.setLabel("left", "N", textColor="k")
-        self.frame_linhist.setLabel("bottom", "Beat linewidth", "Hz", textColor="k")
-        self.frame_linhist.setBackground("w")
+        self.frame_powerspectrum.setLabel("left", "Power spec. of beat freq. (a.u.)", textColor="k")
+        self.frame_powerspectrum.setLabel("bottom", "Fourier Frequency", "Hz", textColor="k")
+        self.frame_powerspectrum.setBackground("w")
+        self.frame_powerspectrum.setLogMode(x=False, y=True)
         
         # Set axis pen color to black
         self.frame_spectrum.getAxis('bottom').setPen(pg.mkPen(color="k"))  # X-axis
@@ -111,8 +109,8 @@ class GUI(QMainWindow):
         self.frame_allandev.getAxis('bottom').setPen(pg.mkPen(color="k"))  # X-axis
         self.frame_allandev.getAxis('left').setPen(pg.mkPen(color="k"))    # Y-axis
         
-        self.frame_linhist.getAxis('bottom').setPen(pg.mkPen(color="k"))  # X-axis
-        self.frame_linhist.getAxis('left').setPen(pg.mkPen(color="k"))    # Y-axis
+        self.frame_powerspectrum.getAxis('bottom').setPen(pg.mkPen(color="k"))  # X-axis
+        self.frame_powerspectrum.getAxis('left').setPen(pg.mkPen(color="k"))    # Y-axis
         
         # Set axis tick and label color to black
         self.frame_spectrum.getAxis('bottom').setTextPen(color="k")
@@ -127,8 +125,8 @@ class GUI(QMainWindow):
         self.frame_allandev.getAxis('bottom').setTextPen(color="k")
         self.frame_allandev.getAxis('left').setTextPen(color="k")
         
-        self.frame_linhist.getAxis('bottom').setTextPen(color="k")
-        self.frame_linhist.getAxis('left').setTextPen(color="k")
+        self.frame_powerspectrum.getAxis('bottom').setTextPen(color="k")
+        self.frame_powerspectrum.getAxis('left').setTextPen(color="k")
         
         # Set Allan deviation plot to log-log
         #self.frame_allandev.setLogMode(x=True, y=False)
@@ -213,6 +211,7 @@ class GUI(QMainWindow):
         self.plotted_spectrum = self.frame_spectrum.plot(freqs, spectra[:,0], pen=pg.mkPen(color='k'))
          
         # Create time steps array (not needed in this method but what's done is done)
+        # Unit: seconds
         dt = float(window.input_dt.text())
         time_array = np.arange(0, number_spectra)*dt
         
@@ -357,7 +356,7 @@ class GUI(QMainWindow):
         self.frame_frequency.clear()
         self.frame_linewidth.clear()
         self.frame_allandev.clear()
-        self.frame_linhist.clear()
+        self.frame_powerspectrum.clear()
         
         # Convert time_array to hours for plotting
         hours = time_array/3600
@@ -378,9 +377,25 @@ class GUI(QMainWindow):
         self.frame_frequency.addItem(shade_area_frequency)
         self.frame_linewidth.addItem(shade_area_linewidth)
         
-        # Create linewidth histogram
-        hist, edges = np.histogram(fitresults[3,:], bins="fd") # Number of bins estimated by Freedman Diaconis Estimator
-        self.frame_linhist.plot(x=edges, y=hist, stepMode="center", pen=pg.mkPen(color='k'))
+        # Calculate power spectrum (FFT) of beat frequency
+        #hist, edges = np.histogram(fitresults[3,:], bins="fd") # Number of bins estimated by Freedman Diaconis Estimator
+        n_samples = len(fitresults[2,:])
+        # Fourier frequency resolution = 1 / sampling time
+        df = 1/(n_samples*dt) 
+        # Length of the FFT array according to np.fft.rfft docs
+        n_powerspectrum = n_samples//2+1
+        # Calculate Fourier frequency vector
+        freqs_powerspectrum = np.arange(0, n_powerspectrum) * df
+        # Get Hanning window
+        hanning = np.hanning(n_samples)
+        # Calculate power spectrum as defined e.g. in
+        # https://pure.mpg.de/rest/items/item_152164/component/file_152163/content,
+        # weighting the data with the hanning window
+        powerspectrum = 2 * np.real(np.fft.rfft(fitresults[2,:]*hanning))**2 /sum(hanning)**2 
+        
+        # Plot power spectrum
+        #self.frame_powerspectrum.plot(x=edges, y=hist, stepMode="center", pen=pg.mkPen(color='k'))
+        self.frame_powerspectrum.plot(x=freqs_powerspectrum, y=powerspectrum, pen=pg.mkPen(color='k'))
         
         # Calculate Allan deviation
         fractional_frequency = fitresults[2,:] / np.mean(fitresults[2,:])
@@ -398,7 +413,6 @@ class GUI(QMainWindow):
         # Add scatter item and shaded sigma bands to plot
         self.plotted_allandev = window.frame_allandev.addItem(scatter_allandev)
         self.plotted_allandev_std = window.frame_allandev.addItem(shade_area_allandev)
-                
     
     # Called at mouse click in the frequency and linewidth plot, respectively
     #   - Determine the position of the mouse click in data coordinates  
@@ -406,6 +420,7 @@ class GUI(QMainWindow):
     def signal_frequency(self, event):
         # Get click position
         click_pos = self.frame_frequency.plotItem.vb.mapSceneToView(event.scenePos())
+
         # Call plot_clicked_point method
         self.plot_clicked_point(click_pos)
     def signal_linewidth(self, event):
@@ -428,12 +443,15 @@ class GUI(QMainWindow):
         fitresults = self.datadict["fitresults"]
         
         # Get x index of data point closest to click
-        click_idx = (np.abs(time_array - click_pos.x())).argmin()        
-
+        # The click_pos comes in units of the plot, which is hours, while the 
+        # time_array is in seconds. Convert click_pos to seconds to get things
+        # right.
+        click_idx = (np.abs(time_array - click_pos.x()*3600)).argmin()    
+        
         # Clear previous spectrum plot if it exists
         if hasattr(self, 'plotted_spectrum'):
             self.frame_spectrum.removeItem(self.plotted_spectrum)
-    
+        
         # Plot the new spectrum and store the item
         self.plotted_spectrum = self.frame_spectrum.plot(freqs[fitrange_idx[0]:fitrange_idx[1]],\
                                                          spectra[fitrange_idx[0]:fitrange_idx[1],click_idx],\

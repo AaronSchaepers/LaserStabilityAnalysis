@@ -425,7 +425,7 @@
      </rect>
     </property>
    </widget>
-   <widget class="PlotWidget" name="frame_allandev" native="true">
+   <widget class="PlotWidget" name="frame_powerspectrum" native="true">
     <property name="geometry">
      <rect>
       <x>650</x>
@@ -435,7 +435,7 @@
      </rect>
     </property>
    </widget>
-   <widget class="PlotWidget" name="frame_linhist" native="true">
+   <widget class="PlotWidget" name="frame_allandev" native="true">
     <property name="geometry">
      <rect>
       <x>650</x>
