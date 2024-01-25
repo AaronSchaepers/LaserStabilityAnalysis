@@ -10,21 +10,32 @@ import pickle
 import allantools
 
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 # Define plot layout
-mpl.rcParams.update(mpl.rcParamsDefault)
-plt.rcParams["svg.fonttype"] = "none"
-plt.rcParams["pdf.fonttype"] = 42
+# Define plot layout
+plt.rcParams["mathtext.fontset"] = "cm"
+plt.rcParams["font.family"] = "serif"
+plt.rcParams["font.serif"] = "cmr10"
+plt.rcParams["font.size"] = 12
+plt.rcParams["axes.formatter.use_mathtext"] = True
 plt.rcParams["xtick.direction"] = "in"
 plt.rcParams["ytick.direction"] = "in"
-plt.rcParams["text.usetex"] = True
-
-lw = 0.8
+plt.rcParams["xtick.top"] = True
+plt.rcParams["ytick.right"] = True
+plt.rcParams["grid.alpha"] = 0
+plt.rcParams["grid.color"] = "grey"
+plt.rcParams["axes.linewidth"] = 1
+#plt.rcParams["axes.grid"] = True
 
 # Directory (0_analysis folder)
-path = "/Users/aaron/Desktop/Institut/Data/20240109-0001/0_Analysis"
+path = "/Volumes/~go68jit/TUM-PC/Dokumente/Daten/Laser stabilization/Koheras to comb locking/20240122-0001/waveforms/0_Analysis/"
+
+# Linewidth of the plot line
+lw = 0.8
+
+# Save the plots?
+save = False
 
 # =============================================================================
 # # Import datadict issued from the analysis script
@@ -45,17 +56,20 @@ dt = datadict["dt"]
 scaling = 1.5
 scaling_inset = 0.15
 plt.figure(figsize=(scaling*3.375, scaling*2.086)) # Ensures golden ratio
-plt.plot(time_array, fitresults[2,:]*1e-6, linewidth=lw) # Convert frequency to MHz
+plt.plot(time_array, fitresults[0,:]*1e-6, linewidth=lw) # Convert frequency to MHz
 plt.xlabel("Time (s)")
 plt.ylabel("Beat frequency (MHz)")
-######## Zoom-in ########
+######## Inset ########
 ax2 = plt.axes([0.27, 0.57, scaling_inset*3.375, scaling_inset*2.086]) # left, bottom, width, height (with respect to full figure, maximum = 1)
-ax2.plot(time_array, fitresults[2,:]*1e-6, linewidth=lw) # Convert frequency to MHz
+ax2.plot(time_array, fitresults[0,:]*1e-6, linewidth=lw) # Convert frequency to MHz
 ax2.set_xlim((0, 400))
 ax2.set_ylim((22.94, 23.05))
-ax2.set_xlabel("") #labelpad for positioning closer to the axis)
+ax2.set_xlabel("")
 ########################
-#plt.tight_layout()
+plt.tight_layout()
+if save == True:
+    plt.savefig(path+"Frequency.png", format="png", dpi=900)
+    plt.savefig(path+"Frequency.svg", format="svg", dpi=300)
 plt.show()
 plt.close()
 
@@ -64,7 +78,7 @@ plt.close()
 # Power spectrum of frequency
 ###############################################################################
 # Calculate power spectrum (FFT) of beat frequency
-n_samples = len(fitresults[2,:])
+n_samples = len(fitresults[0,:])
 # Fourier frequency resolution = 1 / sampling time
 df = 1/(n_samples*dt) 
 # Length of the FFT array according to np.fft.rfft docs
@@ -76,7 +90,7 @@ hanning = np.hanning(n_samples)
 # Calculate power spectrum as defined e.g. in
 # https://pure.mpg.de/rest/items/item_152164/component/file_152163/content,
 # weighting the data with the hanning window
-powerspectrum = 2 * np.real(np.fft.rfft(fitresults[2,:]*hanning))**2 /sum(hanning)**2 
+powerspectrum = 2 * np.real(np.fft.rfft(fitresults[0,:]*hanning))**2 /sum(hanning)**2 
 # Plot the power spectum
 scaling = 1.5
 plt.figure(figsize=(scaling*3.375, scaling*2.086)) # Ensures golden ratio
@@ -85,6 +99,10 @@ plt.yscale("log")
 plt.xlabel("Fourier frequency (Hz) (s)")
 plt.ylabel("Power spectrum (arb. u.)")
 plt.tight_layout()
+plt.tight_layout()
+if save == True:
+    plt.savefig(path+"Power_spectrum.png", format="png", dpi=900)
+    plt.savefig(path+"Power_spectrum.svg", format="svg", dpi=300)
 plt.show()
 plt.close()
 
@@ -92,7 +110,7 @@ plt.close()
 # Overlapping Allan deviation
 ###############################################################################
 # Calculate Allan deviation
-fractional_frequency = fitresults[2,:] / np.mean(fitresults[2,:])
+fractional_frequency = fitresults[0,:] / np.mean(fitresults[0,:])
 rate = 1/dt
 taus, allandev, allandev_std, ns = allantools.oadev(fractional_frequency, rate, data_type="freq")
 
@@ -105,6 +123,9 @@ plt.yscale("log")
 plt.xlabel(r"$\tau$")
 plt.ylabel("Overlapping Allan deviation")
 plt.tight_layout()
+if save == True:
+    plt.savefig(path+"Allan_deviation.png", format="png", dpi=900)
+    plt.savefig(path+"Allan_deviation.svg", format="svg", dpi=300)
 plt.show()
 plt.close()
 
@@ -113,10 +134,13 @@ plt.close()
 ###############################################################################
 scaling = 1.5
 plt.figure(figsize=(scaling*3.375, scaling*2.086)) # Ensures golden ratio
-plt.plot(time_array, fitresults[3,:]*1e-3, linewidth=lw) # Convert linewidth to kHz
+plt.plot(time_array, fitresults[1,:]*1e-3, linewidth=lw) # Convert linewidth to kHz
 plt.xlabel("Time (s)")
 plt.ylabel("Beat linewidth (kHz)")
 plt.tight_layout()
+if save == True:
+    plt.savefig(path+"Linewidth.png", format="png", dpi=900)
+    plt.savefig(path+"Linewidth.svg", format="svg", dpi=300)
 plt.show()
 plt.close()
 
