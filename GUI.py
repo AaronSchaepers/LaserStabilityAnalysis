@@ -170,7 +170,7 @@ class GUI(QMainWindow):
         
     # Called when "Choose dierctory" is clicked
     #   - Plots the first spectrum
-    #   - Imports all other spectra
+    #   - Imports all other spectra (time-optimized)
     #   - Creates time steps array
     #   - Creates datadict
     def choose_directory_clicked(self):        
@@ -182,31 +182,52 @@ class GUI(QMainWindow):
         if path:
             directory = path
             
-        # Create a list of the waveform files and store them in self.spectra
+        # Create a list of the waveform files
         files = sorted(os.listdir(directory))
         
         # Delete all elements from the list that are no .txt files
         files = list(filter(lambda x: ".txt" in x, files))
         
-        # Read first spectrum and create self.spectra and self.freqs
-        first = np.genfromtxt(os.path.join(directory, files[0]), delimiter="\t", skip_header=2)
+        # Read first spectrum
+        file_path = os.path.join(directory, files[0])
+        first = []
+        # Open file
+        with open(file_path, 'r') as file:
+            # Skip the first three lines
+            for _ in range(3):
+               next(file)
+            # Read remaining lines
+            for line in file:
+                # Split the line by tab
+                entries = line.strip().split('\t')
+                # Append entries to first list
+                first.append([float(x) for x in entries])
+            # Convert first list to numpy array
+            first = np.array(first)
+        
+        # Take frequency vector from first spectrum
         freqs = first[:,0]*1e6 # in Hz
+        
+        # Create array that contains all the spectra
         spectra = np.zeros([len(freqs), len(files)])
         number_spectra = len(files)
-        
-        # Set the min and max of the import progress bar
-        self.pB_import.setMinimum(0)
-        self.pB_import.setMaximum(number_spectra)
-        
-        # Iterate over all spectra and save them to self.spectra
-        for i in range(len(files)):
-            self.pB_import.setValue(i+1)
-            QCoreApplication.processEvents()  # Process GUI events to update the progress bar
-            
-            # Load and process the spectra
-            path = os.path.join(directory, files[i])
-            helper = np.genfromtxt(path, delimiter="\t", skip_header=2)
-            spectra[:,i] = helper[:,1]
+     
+        # Iterate over all .txt files in the directory and open them
+        for i in range(number_spectra):
+            helper_spectrum = []
+            file_path = os.path.join(directory, files[i])
+            with open(file_path, 'r') as file:
+                # Skip the first three lines
+                for _ in range(3):
+                   next(file)
+                # Read remaining lines
+                for line in file:
+                    # Split the line by tab
+                    entries = line.strip().split('\t')
+                    # Extract the second entry (frequency) and append to the current spectrum
+                    helper_spectrum.append(float(entries[1]))
+            # Add current spectrum to spectra array
+            spectra[:,i] = np.array(helper_spectrum)
             
         # Plot the first spectrum
         self.plotted_spectrum = self.frame_spectrum.plot(freqs, spectra[:,0], pen=pg.mkPen(color='k'))
@@ -359,22 +380,19 @@ class GUI(QMainWindow):
         self.frame_allandev.clear()
         self.frame_powerspectrum.clear()
         
-        # Convert time_array to hours for plotting
-        hours = time_array/3600
-        
         # Create shaded 1 sigma bands
         # Frequency
-        line1_frequency = pg.PlotCurveItem(x=hours, y=fitresults[2,:]-fitresults_std[2,:], pen=pg.mkPen(color='k'))
-        line2_frequency = pg.PlotCurveItem(x=hours, y=fitresults[2,:]+fitresults_std[2,:], pen=pg.mkPen(color='k'))
+        line1_frequency = pg.PlotCurveItem(x=time_array, y=fitresults[2,:]-fitresults_std[2,:], pen=pg.mkPen(color='k'))
+        line2_frequency = pg.PlotCurveItem(x=time_array, y=fitresults[2,:]+fitresults_std[2,:], pen=pg.mkPen(color='k'))
         shade_area_frequency = pg.FillBetweenItem(curve1=line1_frequency, curve2=line2_frequency, brush=pg.mkBrush(color=(200, 200, 200, 70)))
         # Linewidth
-        line1_linewidth = pg.PlotCurveItem(x=hours, y=fitresults[3,:]-fitresults_std[3,:], pen=pg.mkPen(color='k'))
-        line2_linewidth = pg.PlotCurveItem(x=hours, y=fitresults[3,:]+fitresults_std[3,:], pen=pg.mkPen(color='k'))
+        line1_linewidth = pg.PlotCurveItem(x=time_array, y=fitresults[3,:]-fitresults_std[3,:], pen=pg.mkPen(color='k'))
+        line2_linewidth = pg.PlotCurveItem(x=time_array, y=fitresults[3,:]+fitresults_std[3,:], pen=pg.mkPen(color='k'))
         shade_area_linewidth = pg.FillBetweenItem(curve1=line1_linewidth, curve2=line2_linewidth, brush=pg.mkBrush(color=(200, 200, 200, 70)))
         
         # Add plots and shaded sigma bands to plots
-        self.frame_frequency.plot(x=hours, y=fitresults[2,:], pen=pg.mkPen(color='k'))
-        self.frame_linewidth.plot(x=hours, y=fitresults[3,:], pen=pg.mkPen(color='k'))
+        self.frame_frequency.plot(x=time_array, y=fitresults[2,:], pen=pg.mkPen(color='k'))
+        self.frame_linewidth.plot(x=time_array, y=fitresults[3,:], pen=pg.mkPen(color='k'))
         self.frame_frequency.addItem(shade_area_frequency)
         self.frame_linewidth.addItem(shade_area_linewidth)
         
@@ -444,10 +462,7 @@ class GUI(QMainWindow):
         fitresults = self.datadict["fitresults"]
         
         # Get x index of data point closest to click
-        # The click_pos comes in units of the plot, which is hours, while the 
-        # time_array is in seconds. Convert click_pos to seconds to get things
-        # right.
-        click_idx = (np.abs(time_array - click_pos.x()*3600)).argmin()    
+        click_idx = (np.abs(time_array - click_pos.x())).argmin()    
         
         # Clear previous spectrum plot if it exists
         if hasattr(self, 'plotted_spectrum'):
