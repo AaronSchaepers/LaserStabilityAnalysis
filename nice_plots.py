@@ -28,7 +28,11 @@ plt.rcParams["axes.linewidth"] = 1
 #plt.rcParams["axes.grid"] = True
 
 # Directory (0_analysis folder)
+<<<<<<< HEAD
 path = "/Volumes/~go68jit/TUM-PC/Dokumente/Daten/Laser stabilization/Koheras to comb locking/20240122-0002/waveforms/0_Analysis"
+=======
+path = "/Volumes/~go68jit/TUM-PC/Dokumente/Daten/Laser stabilization/Koheras to comb locking/20240123-0001/20240123-0001/0_Analysis"
+>>>>>>> 832c5caf1924ea34010db68c092898df82962cc2
 
 # Linewidth of the plot line
 lw = 0.8
@@ -56,6 +60,7 @@ scaling = 1.5
 scaling_inset = 0.15
 plt.figure(figsize=(scaling*3.375, scaling*2.086)) # Ensures golden ratio
 plt.plot(time_array/3600, fitresults[2,:]*1e-6, linewidth=lw) # Convert frequency to MHz
+<<<<<<< HEAD
 plt.fill_between(time_array/3600, (fitresults[2,:]-fitresults_std[2,:])*1e-6,\
                                   (fitresults[2,:]+fitresults_std[2,:])*1e-6,\
                                   alpha=0.3) # One sigma band
@@ -68,6 +73,18 @@ ax2.plot(time_array/3600, fitresults[2,:]*1e-6, linewidth=lw) # Convert frequenc
 ax2.set_xlim((0.5, 0.534))
 ax2.set_ylim((22, 22.6))
 ax2.set_xlabel("")
+=======
+plt.xlabel("Time (h)")
+plt.ylabel("Beat frequency (MHz)")
+######## Inset ########
+# =============================================================================
+# ax2 = plt.axes([0.27, 0.57, scaling_inset*3.375, scaling_inset*2.086]) # left, bottom, width, height (with respect to full figure, maximum = 1)
+# ax2.plot(time_array, fitresults[2,:]*1e-6, linewidth=lw) # Convert frequency to MHz
+# ax2.set_xlim((0, 400))
+# ax2.set_ylim((22.94, 23.05))
+# ax2.set_xlabel("")
+# =============================================================================
+>>>>>>> 832c5caf1924ea34010db68c092898df82962cc2
 ########################
 plt.tight_layout()
 if save == True:
@@ -139,10 +156,13 @@ plt.close()
 scaling = 1.5
 plt.figure(figsize=(scaling*3.375, scaling*2.086)) # Ensures golden ratio
 plt.plot(time_array/3600, fitresults[3,:]*1e-3, linewidth=lw) # Convert linewidth to kHz
+<<<<<<< HEAD
 plt.fill_between(time_array/3600, (fitresults[3,:]-fitresults_std[3,:])*1e-3,\
                                   (fitresults[3,:]+fitresults_std[3,:])*1e-3,\
                                   alpha=0.3) # One sigma band
 plt.ylim((5, 55))
+=======
+>>>>>>> 832c5caf1924ea34010db68c092898df82962cc2
 plt.xlabel("Time (h)")
 plt.ylabel("Beat linewidth (kHz)")
 plt.tight_layout()
