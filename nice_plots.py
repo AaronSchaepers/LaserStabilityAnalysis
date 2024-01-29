@@ -28,11 +28,7 @@ plt.rcParams["axes.linewidth"] = 1
 #plt.rcParams["axes.grid"] = True
 
 # Directory (0_analysis folder)
-<<<<<<< HEAD
-path = "/Volumes/~go68jit/TUM-PC/Dokumente/Daten/Laser stabilization/Koheras to comb locking/20240122-0002/waveforms/0_Analysis"
-=======
-path = "/Volumes/~go68jit/TUM-PC/Dokumente/Daten/Laser stabilization/Koheras to comb locking/20240123-0001/20240123-0001/0_Analysis"
->>>>>>> 832c5caf1924ea34010db68c092898df82962cc2
+path = r"\\nas.ads.mwn.de\go68jit\TUM-PC\Dokumente\Daten\Laser stabilization\Koheras to comb locking\20240123-0001\waveforms\0_Analysis"
 
 # Linewidth of the plot line
 lw = 0.8
@@ -40,11 +36,9 @@ lw = 0.8
 # Save the plots?
 save = False
 
-# =============================================================================
-# # Import datadict issued from the analysis script
-# with open(os.path.join(path, "datadict.pkl"), "rb") as file:
-#     datadict = pickle.load(file)
-# =============================================================================
+# Import datadict issued from the analysis script
+with open(os.path.join(path, "datadict.pkl").replace(os.sep, "/"), "rb") as file:
+    datadict = pickle.load(file)
 
 # Extract relevant variables from the datadict    
 fitresults = datadict["fitresults"]
@@ -58,38 +52,33 @@ dt = datadict["dt"]
 ###############################################################################
 scaling = 1.5
 scaling_inset = 0.15
-plt.figure(figsize=(scaling*3.375, scaling*2.086)) # Ensures golden ratio
-plt.plot(time_array/3600, fitresults[2,:]*1e-6, linewidth=lw) # Convert frequency to MHz
-<<<<<<< HEAD
+# Create figure with size that ensures golden ratio
+plt.figure(figsize=(scaling*3.375, scaling*2.086))
+plt.xlabel("Time (h)")
+plt.ylabel("Beat frequency (MHz)")
+# Plot and convert frequency to MHz
+plt.plot(time_array/3600, fitresults[2,:]*1e-6, linewidth=lw)
+ # Show fit uncertainty as shaded band around the plot
 plt.fill_between(time_array/3600, (fitresults[2,:]-fitresults_std[2,:])*1e-6,\
                                   (fitresults[2,:]+fitresults_std[2,:])*1e-6,\
-                                  alpha=0.3) # One sigma band
-plt.ylim((22.33, 22.44))
-plt.xlabel("Time (h)")
-plt.ylabel("Beat frequency (MHz)")
-######## Inset ########
-ax2 = plt.axes([0.28, 0.55, scaling_inset*3.375, scaling_inset*2.086]) # left, bottom, width, height (with respect to full figure, maximum = 1)
-ax2.plot(time_array/3600, fitresults[2,:]*1e-6, linewidth=lw) # Convert frequency to MHz
-ax2.set_xlim((0.5, 0.534))
-ax2.set_ylim((22, 22.6))
-ax2.set_xlabel("")
-=======
-plt.xlabel("Time (h)")
-plt.ylabel("Beat frequency (MHz)")
+                                  alpha=0.3)
+# If requried, restrain plot range
+#plt.ylim((22.33, 22.44))
+
 ######## Inset ########
 # =============================================================================
-# ax2 = plt.axes([0.27, 0.57, scaling_inset*3.375, scaling_inset*2.086]) # left, bottom, width, height (with respect to full figure, maximum = 1)
-# ax2.plot(time_array, fitresults[2,:]*1e-6, linewidth=lw) # Convert frequency to MHz
-# ax2.set_xlim((0, 400))
-# ax2.set_ylim((22.94, 23.05))
+# ax2 = plt.axes([0.28, 0.55, scaling_inset*3.375, scaling_inset*2.086]) # left, bottom, width, height (with respect to full figure, maximum = 1)
+# ax2.plot(time_array/3600, fitresults[2,:]*1e-6, linewidth=lw) # Convert frequency to MHz
+# ax2.set_xlim((0.5, 0.532))
+# ax2.set_ylim((22, 22.55))
 # ax2.set_xlabel("")
 # =============================================================================
->>>>>>> 832c5caf1924ea34010db68c092898df82962cc2
-########################
+######## Inset ########
+
 plt.tight_layout()
 if save == True:
-    plt.savefig(os.path.join(path, "Frequency.png"), format="png", dpi=900)
-    plt.savefig(os.path.join(path, "Frequency.svg"), format="svg", dpi=300)
+    plt.savefig(os.path.join(path, "Frequency.png"), format="png", dpi=900, bbox_inches='tight')
+    plt.savefig(os.path.join(path, "Frequency.svg"), format="svg", dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
@@ -111,18 +100,19 @@ hanning = np.hanning(n_samples)
 # https://pure.mpg.de/rest/items/item_152164/component/file_152163/content,
 # weighting the data with the hanning window
 powerspectrum = 2 * np.real(np.fft.rfft(fitresults[2,:]*hanning))**2 /sum(hanning)**2 
-# Plot the power spectum
+
+# Create figure with size that ensures golden ratio
 scaling = 1.5
-plt.figure(figsize=(scaling*3.375, scaling*2.086)) # Ensures golden ratio
-plt.plot(freqs_powerspectrum, powerspectrum, linewidth=lw)
-plt.yscale("log")
+plt.figure(figsize=(scaling*3.375, scaling*2.086))
 plt.xlabel("Fourier frequency (Hz)")
 plt.ylabel("Power spectrum (arb. u.)")
-plt.tight_layout()
+# Plot powerspectrum
+plt.plot(freqs_powerspectrum, powerspectrum, linewidth=lw)
+plt.yscale("log")
 plt.tight_layout()
 if save == True:
-    plt.savefig(os.path.join(path, "Power_spectrum.png"), format="png", dpi=900)
-    plt.savefig(os.path.join(path, "Power_spectrum.svg"), format="svg", dpi=300)
+    plt.savefig(os.path.join(path, "Power_spectrum.png"), format="png", dpi=900, bbox_inches='tight')
+    plt.savefig(os.path.join(path, "Power_spectrum.svg"), format="svg", dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
@@ -134,19 +124,22 @@ fractional_frequency = fitresults[2,:] / np.mean(fitresults[2,:])
 rate = 1/dt
 taus, allandev, allandev_std, ns = allantools.oadev(fractional_frequency, rate, data_type="freq")
 
-# Plot Allan deviation
 scaling = 1.5
-plt.figure(figsize=(scaling*3.375, scaling*2.086)) # Ensures golden ratio
-plt.plot(taus, allandev, linewidth=lw)
-plt.fill_between(taus, allandev-allandev_std, allandev+allandev_std, alpha=0.3) # One sigma band
+# Create figure with size that ensures golden ratio
+plt.figure(figsize=(scaling*3.375, scaling*2.086))
 plt.xscale("log")
 plt.yscale("log")
 plt.xlabel(r"$\tau$ (s)")
 plt.ylabel("Overlapping Allan deviation")
+# Plot Allan deviation
+plt.plot(taus, allandev, linewidth=lw)
+ # Show fit uncertainty as shaded band around the plot
+plt.fill_between(taus, allandev-allandev_std, allandev+allandev_std, alpha=0.3) # One sigma band
+
 plt.tight_layout()
 if save == True:
-    plt.savefig(os.path.join(path, "Allan_deviation.png"), format="png", dpi=900)
-    plt.savefig(os.path.join(path, "Allan_deviation.svg"), format="svg", dpi=300)
+    plt.savefig(os.path.join(path, "Allan_deviation.png"), format="png", dpi=900, bbox_inches='tight')
+    plt.savefig(os.path.join(path, "Allan_deviation.svg"), format="svg", dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
@@ -154,23 +147,25 @@ plt.close()
 # Linewidth
 ###############################################################################
 scaling = 1.5
-plt.figure(figsize=(scaling*3.375, scaling*2.086)) # Ensures golden ratio
-plt.plot(time_array/3600, fitresults[3,:]*1e-3, linewidth=lw) # Convert linewidth to kHz
-<<<<<<< HEAD
-plt.fill_between(time_array/3600, (fitresults[3,:]-fitresults_std[3,:])*1e-3,\
-                                  (fitresults[3,:]+fitresults_std[3,:])*1e-3,\
-                                  alpha=0.3) # One sigma band
-plt.ylim((5, 55))
-=======
->>>>>>> 832c5caf1924ea34010db68c092898df82962cc2
+# Create figure with size that ensures golden ratio
+plt.figure(figsize=(scaling*3.375, scaling*2.086))
+plt.ylim((10, 110))
 plt.xlabel("Time (h)")
-plt.ylabel("Beat linewidth (kHz)")
+plt.ylabel("FWHM (kHz)")
+# Plot linewidth, converted from Hz to kHz and from HWHM to FWHM by factor 2e-3
+plt.plot(time_array/3600, fitresults[3,:]*2e-3, linewidth=lw)
+ # Show fit uncertainty as shaded band around the plot
+plt.fill_between(time_array/3600, (fitresults[3,:]-fitresults_std[3,:])*2e-3,\
+                                  (fitresults[3,:]+fitresults_std[3,:])*2e-3,\
+                                  alpha=0.3) # One sigma band
+
 plt.tight_layout()
 if save == True:
-    plt.savefig(os.path.join(path, "Linewidth.png"), format="png", dpi=900)
-    plt.savefig(os.path.join(path, "Linewidth.svg"), format="svg", dpi=300)
+    plt.savefig(os.path.join(path, "Linewidth.png"), format="png", dpi=900, bbox_inches='tight')
+    plt.savefig(os.path.join(path, "Linewidth.svg"), format="svg", dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
+
 
 
 

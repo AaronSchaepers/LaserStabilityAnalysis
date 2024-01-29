@@ -38,6 +38,8 @@ def save_object(directory, folder, name, file):
 ###############################################################################
 
 """ Lorentzian as used in spectroscopy """
+# https://en.wikipedia.org/wiki/Cauchy_distribution
+# Here, lw = Half Width at Half Maximum!
 def lorentzian(x, b, c, x0, lw):
    f = b + c / pi * lw / ((x-x0)**2 + lw**2)
    return(f)
