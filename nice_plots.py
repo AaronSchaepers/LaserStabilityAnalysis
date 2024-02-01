@@ -28,13 +28,13 @@ plt.rcParams["axes.linewidth"] = 1
 #plt.rcParams["axes.grid"] = True
 
 # Directory (0_analysis folder)
-path = r"\\nas.ads.mwn.de\go68jit\TUM-PC\Dokumente\Daten\Laser stabilization\Koheras to comb locking\20240123-0001\waveforms\0_Analysis"
+path = r"\\nas.ads.mwn.de\go68jit\TUM-PC\Dokumente\Daten\Laser stabilization\Koheras comb lock\20240109-0001\waveforms\0_Analysis"
 
 # Linewidth of the plot line
 lw = 0.8
 
 # Save the plots?
-save = False
+save = True
 
 # Import datadict issued from the analysis script
 with open(os.path.join(path, "datadict.pkl").replace(os.sep, "/"), "rb") as file:
@@ -56,14 +56,15 @@ scaling_inset = 0.15
 plt.figure(figsize=(scaling*3.375, scaling*2.086))
 plt.xlabel("Time (h)")
 plt.ylabel("Beat frequency (MHz)")
+# If requried, define plot range
+#plt.ylim((22.33, 22.44))
+#plt.xlim((0,4.1))
 # Plot and convert frequency to MHz
 plt.plot(time_array/3600, fitresults[2,:]*1e-6, linewidth=lw)
  # Show fit uncertainty as shaded band around the plot
 plt.fill_between(time_array/3600, (fitresults[2,:]-fitresults_std[2,:])*1e-6,\
                                   (fitresults[2,:]+fitresults_std[2,:])*1e-6,\
                                   alpha=0.3)
-# If requried, restrain plot range
-#plt.ylim((22.33, 22.44))
 
 ######## Inset ########
 # =============================================================================
@@ -131,6 +132,8 @@ plt.xscale("log")
 plt.yscale("log")
 plt.xlabel(r"$\tau$ (s)")
 plt.ylabel("Overlapping Allan deviation")
+# If required, define plot range
+#plt.ylim((9e-6, 3e-4))
 # Plot Allan deviation
 plt.plot(taus, allandev, linewidth=lw)
  # Show fit uncertainty as shaded band around the plot
@@ -149,14 +152,15 @@ plt.close()
 scaling = 1.5
 # Create figure with size that ensures golden ratio
 plt.figure(figsize=(scaling*3.375, scaling*2.086))
-plt.ylim((10, 110))
 plt.xlabel("Time (h)")
 plt.ylabel("FWHM (kHz)")
-# Plot linewidth, converted from Hz to kHz and from HWHM to FWHM by factor 2e-3
-plt.plot(time_array/3600, fitresults[3,:]*2e-3, linewidth=lw)
+# If requried, define plot range
+#plt.ylim((10, 110))
+# Plot linewidth, converted from Hz to kHz by factor 1e-3
+plt.plot(time_array/3600, fitresults[3,:]*1e-3, linewidth=lw)
  # Show fit uncertainty as shaded band around the plot
-plt.fill_between(time_array/3600, (fitresults[3,:]-fitresults_std[3,:])*2e-3,\
-                                  (fitresults[3,:]+fitresults_std[3,:])*2e-3,\
+plt.fill_between(time_array/3600, (fitresults[3,:]-fitresults_std[3,:])*1e-3,\
+                                  (fitresults[3,:]+fitresults_std[3,:])*1e-3,\
                                   alpha=0.3) # One sigma band
 
 plt.tight_layout()
